@@ -1,5 +1,9 @@
 import fetchLocations from "./api/fetchLocations.js"
+import { fetchOpenSlots } from "./api/fetchOpenSlots.js"
+
 const ALARM_JOB_NAME = "DROP_ALARM"
+
+let cachedPrefs = {};
 
 chrome.runtime.onInstalled.addListener(details => {
     fetchLocations()
@@ -26,10 +30,12 @@ const handleOnStop = () => {
     console.log("On stop in background")
     setRunningStatus(false);
     stopAlarm();
+    cachedPrefs = {};
 }
 
 const handleOnStart = (prefs) => {
     console.log("prefs recieved: ", prefs)
+    cachedPrefs = prefs
     chrome.storage.local.set(prefs)
     setRunningStatus(true);
     createAlarm();
@@ -53,4 +59,5 @@ const stopAlarm = () => {
 
 chrome.alarms.onAlarm.addListener(() => {
     console.log("onAlarm scheduled code running...")
+    fetchOpenSlots(cachedPrefs)
 })
