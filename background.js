@@ -1,84 +1,85 @@
-import fetchLocations from "./api/fetchLocations.js"
-import { fetchOpenSlots } from "./api/fetchOpenSlots.js"
+import fetchLocations from "./api/fetchLocations.js";
+import { fetchOpenSlots } from "./api/fetchOpenSlots.js";
 import { createNotification } from "./lib/createNotifications.js";
 
-const ALARM_JOB_NAME = "DROP_ALARM"
+const ALARM_JOB_NAME = "DROP_ALARM";
 
 let cachedPrefs = {};
 let firstAppointmentTimestamp = null;
 
-chrome.runtime.onInstalled.addListener(details => {
-    handleOnStop();
-    fetchLocations()
-})
+chrome.runtime.onInstalled.addListener((details) => {
+	handleOnStop();
+	fetchLocations();
+});
 
-
-chrome.runtime.onMessage.addListener(data => {
-    const { event, prefs } = data
-    switch (event) {
-        case 'onStop':
-            handleOnStop();
-            break;
-        case 'onStart':
-            handleOnStart(prefs);
-            break;
-        default:
-            break;
-    }
-})
+chrome.runtime.onMessage.addListener((data) => {
+	const { event, prefs } = data;
+	switch (event) {
+		case "onStop":
+			handleOnStop();
+			break;
+		case "onStart":
+			handleOnStart(prefs);
+			break;
+		default:
+			break;
+	}
+});
 
 chrome.notifications.onClicked.addListener(() => {
-    chrome.tabs.create({ url: "https://ttp.cbp.dhs.gov/schedulerui/schedule-interview/location?lang=en&vo=true&returnUrl=ttp-external&service=up" })
-})
+	chrome.tabs.create({
+		url: "https://ttp.cbp.dhs.gov/schedulerui/schedule-interview/location?lang=en&vo=true&returnUrl=ttp-external&service=up",
+	});
+});
 
 chrome.alarms.onAlarm.addListener(() => {
-    console.log("onAlarm scheduled code running...")
-    openSlotsJob();
-})
+	openSlotsJob();
+});
 
 const handleOnStop = () => {
-    console.log("On stop in background")
-    setRunningStatus(false);
-    stopAlarm();
-    cachedPrefs = {};
-    firstAppointmentTimestamp = null;
-}
+	setRunningStatus(false);
+	stopAlarm();
+	cachedPrefs = {};
+	firstAppointmentTimestamp = null;
+};
 
 const handleOnStart = (prefs) => {
-    console.log("prefs recieved: ", prefs)
-    cachedPrefs = prefs
-    chrome.storage.local.set(prefs)
-    setRunningStatus(true);
-    createAlarm();
-}
+	cachedPrefs = prefs;
+	chrome.storage.local.set(prefs);
+	setRunningStatus(true);
+	createAlarm();
+};
 
 const setRunningStatus = (isRunning) => {
-    chrome.storage.local.set({ isRunning })
-}
+	chrome.storage.local.set({ isRunning });
+};
 
 const createAlarm = () => {
-    chrome.alarms.get(ALARM_JOB_NAME, existingAlarm => {
-        if (!existingAlarm) {
-            // immediately run the job
-            openSlotsJob();
-            chrome.alarms.create(ALARM_JOB_NAME, { periodInMinutes: 1.0 })
-        }
-    })
-}
+	chrome.alarms.get(ALARM_JOB_NAME, (existingAlarm) => {
+		if (!existingAlarm) {
+			// immediately run the job
+			openSlotsJob();
+			chrome.alarms.create(ALARM_JOB_NAME, { periodInMinutes: 1.0 });
+		}
+	});
+};
 
 const stopAlarm = () => {
-    chrome.alarms.clearAll()
-}
+	chrome.alarms.clearAll();
+};
 
 const openSlotsJob = () => {
-    fetchOpenSlots(cachedPrefs)
-        .then(data => handleOpenSlots(data))
-}
+	fetchOpenSlots(cachedPrefs).then((data) => handleOpenSlots(data));
+};
 
 const handleOpenSlots = (openSlots) => {
-    if (openSlots && openSlots.length > 0 && openSlots[0].timestamp != firstAppointmentTimestamp) {
-        firstAppointmentTimestamp = openSlots[0].timestamp;
-        // create notification
-        createNotification(openSlots[0], openSlots.length, cachedPrefs)
-    }
-}
+	if (
+		openSlots &&
+		openSlots.length > 0 &&
+		openSlots[0].timestamp != firstAppointmentTimestamp
+	) {
+		firstAppointmentTimestamp = openSlots[0].timestamp;
+		// create notification
+		createNotification(openSlots[0], openSlots.length, cachedPrefs);
+	}
+};
